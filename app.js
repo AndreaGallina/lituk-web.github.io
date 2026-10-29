@@ -5,7 +5,7 @@ const $app = document.getElementById('app');
 
 // Progress is kept in the browser's localStorage, so it survives reloads on the same browser.
 const KEY = 'lituk-progress-v1';
-const progress = Object.assign({ lessons: {}, tests: {}, known: {} }, JSON.parse(localStorage.getItem(KEY) || '{}'));
+const progress = Object.assign({ lessons: {}, tests: {}, known: {}, chapters: {} }, JSON.parse(localStorage.getItem(KEY) || '{}'));
 const save = () => localStorage.setItem(KEY, JSON.stringify(progress));
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -27,6 +27,8 @@ const shuffle = list => {
 const lessonById = new Map();
 const chapterOfLesson = new Map();
 for (const c of D.chapters) for (const l of c.lessons) { lessonById.set(l.id, l); chapterOfLesson.set(l.id, c); }
+const chapterById = new Map(D.chapters.map(c => [c.id, c]));
+const chapterQuestions = c => c.lessons.flatMap(l => l.questions);
 const testById = new Map(D.tests.map(t => [t.id, t]));
 const cardById = new Map(D.flashcards.map(c => [c.id, c]));
 
@@ -51,8 +53,10 @@ function studyPage() {
 }
 
 function chapterPage(id) {
-  const c = D.chapters.find(c => c.id === +id);
+  const c = chapterById.get(+id);
   if (!c) return notFound();
+  const total = chapterQuestions(c).length;
+  const best = progress.chapters[c.id]?.best;
   const lessons = c.lessons.map((l, i) => {
     const p = progress.lessons[l.id];
     const sub = p?.quiz !== undefined ? `Best quiz score: ${p.quiz}%` : `${l.questions.length} practice questions`;
@@ -60,7 +64,11 @@ function chapterPage(id) {
       <span class="num ${p?.done ? 'done' : ''}">${p?.done ? '✓' : i + 1}</span>
       <div class="grow"><div class="title">${esc(l.title)}</div><div class="muted">${sub}</div></div></a>`;
   }).join('');
-  return `<a class="back" href="#/study">‹ Study</a><h1>${esc(c.title)}</h1>${lessons}`;
+  return `<a class="back" href="#/study">‹ Study</a><h1>${esc(c.title)}</h1>${lessons}
+    ${total ? `<div class="actions">
+      <a class="btn primary" href="#/practice/${c.id}">Start Chapter Practice</a>
+      <span class="muted">All ${total} questions from this chapter${best !== undefined ? ` · best score ${best}%` : ''}</span>
+    </div>` : ''}`;
 }
 
 function lessonPage(id) {
@@ -95,8 +103,8 @@ function testsPage() {
     ${tests}`;
 }
 
-// ---------- Question runner (lesson quizzes and practice tests) ----------
-// A lesson quiz shows the right answer after each question.
+// ---------- Question runner (lesson quizzes, chapter practice and practice tests) ----------
+// A lesson quiz or chapter practice shows the right answer after each question.
 // A practice test ("exam") has a timer and only shows answers at the end.
 
 let run = null;
@@ -104,10 +112,14 @@ let timer = null;
 const stopTimer = () => { clearInterval(timer); timer = null; };
 
 function startRun(kind, id) {
-  const src = kind === 'test' ? testById.get(+id) : lessonById.get(+id);
+  const chapter = kind === 'practice' && chapterById.get(+id);
+  const src = kind === 'test' ? testById.get(+id)
+    : chapter ? { title: `${chapter.title}: chapter practice`, questions: chapterQuestions(chapter) }
+    : lessonById.get(+id);
   if (!src) return notFound();
   run = {
     kind, id: +id, title: src.title, exam: kind === 'test',
+    backHref: { test: '#/tests', practice: `#/chapter/${id}`, quiz: `#/lesson/${id}` }[kind],
     questions: src.questions.map(q => ({
       ...q,
       // Keep True/False in a fixed order; shuffle everything else, because the stored correct answer is always first.
@@ -148,7 +160,7 @@ function runPage() {
     : bar(r.answers.length, r.questions.length);
 
   return `<div class="runbar">
-      <a class="back" href="${r.exam ? '#/tests' : `#/lesson/${r.id}`}">‹ Quit</a>
+      <a class="back" href="${r.backHref}">‹ Quit</a>
       <span class="title">${esc(r.title)}</span>
       ${r.deadline ? `<span id="timer" class="timer">${fmtTime(r.deadline - Date.now())}</span>` : ''}
     </div>
@@ -175,6 +187,8 @@ function finishRun() {
   if (r.kind === 'test') {
     const p = progress.tests[r.id] || { best: 0, attempts: 0 };
     progress.tests[r.id] = { best: Math.max(p.best, score), last: score, attempts: p.attempts + 1 };
+  } else if (r.kind === 'practice') {
+    progress.chapters[r.id] = { best: Math.max(progress.chapters[r.id]?.best ?? 0, score) };
   } else {
     const p = progress.lessons[r.id] || {};
     progress.lessons[r.id] = { ...p, done: true, quiz: Math.max(p.quiz ?? 0, score) };
@@ -197,7 +211,7 @@ function resultsPage(correct, score) {
       ${ok ? '' : `<p class="yours good">Correct answer: ${esc(q.answer)}</p>`}
       <p class="muted">${esc(q.feedback)}</p></div>`;
   }).join('');
-  return `<a class="back" href="${r.exam ? '#/tests' : `#/lesson/${r.id}`}">‹ Back</a>
+  return `<a class="back" href="${r.backHref}">‹ Back</a>
     <h1>${heading}</h1>
     <div class="score ${passed ? 'pass' : 'fail'}">${correct} / ${r.questions.length}<small>${score}%</small></div>
     <p class="muted">The pass mark is ${D.passPercent}%. Time taken: ${r.minutes} min.</p>
@@ -255,7 +269,7 @@ const actions = {
   },
   reset() {
     if (!confirm('Delete all saved progress?')) return;
-    progress.lessons = {}; progress.tests = {}; progress.known = {};
+    progress.lessons = {}; progress.tests = {}; progress.known = {}; progress.chapters = {};
     save(); route();
   },
   done(el) {
@@ -310,13 +324,13 @@ function route() {
   stopTimer();
   const [, page, id] = location.hash.split('/');
   const name = page || 'study';
-  if (name !== 'test' && name !== 'quiz') run = null;
+  if (!['test', 'quiz', 'practice'].includes(name)) run = null;
   const pages = {
     study: studyPage, chapter: chapterPage, lesson: lessonPage, tests: testsPage, cards: cardsPage,
-    test: id => startRun('test', id), quiz: id => startRun('quiz', id),
+    test: id => startRun('test', id), quiz: id => startRun('quiz', id), practice: id => startRun('practice', id),
   };
   render((pages[name] || notFound)(id));
-  const tab = { chapter: 'study', lesson: 'study', quiz: 'study', test: 'tests' }[name] || name;
+  const tab = { chapter: 'study', lesson: 'study', quiz: 'study', practice: 'study', test: 'tests' }[name] || name;
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.dataset.tab === tab));
   window.scrollTo(0, 0);
 }
