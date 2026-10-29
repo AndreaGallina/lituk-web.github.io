@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Life in the UK Test</title>
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="style.css">
+  <script>
+    document.documentElement.dataset.theme = localStorage.getItem('lituk-theme')
+      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  </script>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <a class="brand" href="#/study"><img src="icon.png" alt="">Life in the UK</a>
+      <nav>
+        <a data-tab="study" href="#/study">Study</a>
+        <a data-tab="tests" href="#/tests">Tests</a>
+        <a data-tab="cards" href="#/cards">Flashcards</a>
+      </nav>
+      <button class="theme" data-action="theme" title="Toggle dark mode">◐</button>
+    </div>
+  </header>
+  <main id="app" class="wrap"></main>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
