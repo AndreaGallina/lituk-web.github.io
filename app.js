@@ -114,7 +114,7 @@ const stopTimer = () => { clearInterval(timer); timer = null; };
 function startRun(kind, id) {
   const chapter = kind === 'practice' && chapterById.get(+id);
   const src = kind === 'test' ? testById.get(+id)
-    : chapter ? { title: `${chapter.title}: chapter practice`, questions: chapterQuestions(chapter) }
+    : chapter ? { title: `${chapter.title}: chapter practice`, questions: shuffle(chapterQuestions(chapter)) }
     : lessonById.get(+id);
   if (!src) return notFound();
   run = {
