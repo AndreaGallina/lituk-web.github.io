@@ -1,10 +1,10 @@
 :root {
   --bg: #f4f6fa; --surface: #fff; --text: #1b1f27; --muted: #6b7280; --border: #e3e7ee;
-  --primary: #0063f0; --primary-soft: #e6f0ff; --good: #12a150; --good-soft: #e5f6ec; --bad: #e0393e; --bad-soft: #fdeaea;
+  --primary: #0063f0; --primary-soft: #e6f0ff; --extra: #7a3fd1; --extra-soft: #f1e9fd; --custom: #c25a00; --custom-soft: #fff0e3; --good: #12a150; --good-soft: #e5f6ec; --bad: #e0393e; --bad-soft: #fdeaea;
 }
 [data-theme="dark"] {
   --bg: #0f1218; --surface: #1a1f29; --text: #e8ebf1; --muted: #9aa3b2; --border: #2a3140;
-  --primary: #4d8dff; --primary-soft: #1c2a45; --good: #3ccf7e; --good-soft: #15301f; --bad: #ff6b6f; --bad-soft: #3a1c1e;
+  --primary: #4d8dff; --primary-soft: #1c2a45; --extra: #b48cff; --extra-soft: #2a2140; --custom: #ffa154; --custom-soft: #3a2614; --good: #3ccf7e; --good-soft: #15301f; --bad: #ff6b6f; --bad-soft: #3a1c1e;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -19,10 +19,11 @@ header .wrap { display: flex; align-items: center; gap: 16px; height: 56px; }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--text); }
 .brand img { width: 28px; height: 28px; border-radius: 7px; }
 nav { display: flex; gap: 4px; margin-left: auto; }
-nav a { padding: 6px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; }
+nav a { padding: 6px 12px; border-radius: 8px; color: var(--muted); font-weight: 600; white-space: nowrap; }
 nav a.active { background: var(--primary-soft); color: var(--primary); }
+nav a[data-tab="extra"].active { background: var(--extra-soft); color: var(--extra); }
 .theme { border: 0; background: none; color: var(--text); font-size: 1.2rem; cursor: pointer; }
-@media (max-width: 520px) { .brand { font-size: 0; gap: 0; } nav a { padding: 6px 8px; } }
+@media (max-width: 520px) { .brand { font-size: 0; gap: 0; } header .wrap { gap: 8px; } nav { gap: 0; } nav a { padding: 6px 5px; font-size: .85rem; } }
 
 .back { display: inline-block; margin-top: 16px; font-weight: 600; }
 .muted { color: var(--muted); font-size: .9rem; }
@@ -97,3 +98,22 @@ a.card:hover { border-color: var(--primary); }
 .flash .example { margin-top: 14px; color: var(--muted); font-style: italic; }
 .flash .hint { margin-top: 22px; font-size: .8rem; color: var(--muted); }
 .toolbar { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+
+/* Extra tests from lifeintheuktestweb.co.uk use their own colour so they are not confused with the app's tests. */
+.extra-banner { background: var(--extra-soft); border-radius: 12px; padding: 4px 20px 12px; margin-top: 16px; }
+.extra-banner h1 { color: var(--extra); }
+.extra-banner a { color: var(--extra); font-weight: 600; }
+.card.extra { border-left: 4px solid var(--extra); }
+a.card.extra:hover { border-color: var(--extra); }
+.tag { display: inline-block; background: var(--extra-soft); color: var(--extra); font-size: .75rem; font-weight: 700;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 99px; vertical-align: middle; }
+
+/* Custom tests built from the user's mistakes. */
+.custom-banner { background: var(--custom-soft); border-radius: 12px; padding: 4px 20px 6px; margin-top: 16px; }
+.custom-banner h1 { color: var(--custom); }
+.custom-banner a:not(.btn) { color: var(--custom); font-weight: 600; }
+.btn.custom { background: var(--custom); border-color: var(--custom); color: #fff; }
+[data-theme="dark"] .btn.custom { color: #1b1f27; }
+.tag.custom { background: var(--custom-soft); color: var(--custom); }
+.bar.weak span { background: var(--bad); }
+h2 .source { font-size: .85rem; font-weight: 400; margin-left: 6px; }
