@@ -125,6 +125,11 @@ const MASTERED_BOX = 5;
 const CUSTOM_SIZE = 24;
 const CUSTOM_REVIEW_MAX = 16;
 const CUSTOM_WEAK_SHARE = 0.75;
+// Custom tests only use questions from the site's Exams 1–17 (Extra tests tab).
+// Answers to every question in the app still count towards the topic error rates.
+const customPool = [...new Set(D.extraTests.filter(t => t.series === 'Exams')
+  .flatMap(t => t.questions.map(q => questionById.get(String(q.id)))))];
+const inCustomPool = new Set(customPool);
 
 function record(q, ok) {
   const r = progress.review[q.id] || { right: 0, wrong: 0, box: null, due: 0 };
@@ -155,7 +160,7 @@ function topicStats() {
     const r = progress.review[q.id];
     s.questions++;
     if (r) { s.right += r.right; s.wrong += r.wrong; right += r.right; wrong += r.wrong; }
-    if (isDue(q)) s.due++;
+    if (inCustomPool.has(q) && isDue(q)) s.due++;
   }
   const overall = (wrong + 1) / (right + wrong + 2);
   for (const s of stats.values()) {
@@ -172,7 +177,7 @@ const weightedPick = items => {
 
 function buildCustomTest() {
   // 1. Mistakes that are due for review: lowest box first, then the longest overdue.
-  const due = [...questionById.values()].filter(isDue).sort((a, b) =>
+  const due = customPool.filter(isDue).sort((a, b) =>
     progress.review[a.id].box - progress.review[b.id].box || progress.review[a.id].due - progress.review[b.id].due);
   const picked = due.slice(0, CUSTOM_REVIEW_MAX);
   const taken = new Set(picked.map(q => q.id));
@@ -183,7 +188,7 @@ function buildCustomTest() {
   //    Within a topic, questions never answered come first.
   const { stats, overall } = topicStats();
   const pools = new Map();
-  for (const q of shuffle([...questionById.values()])) {
+  for (const q of shuffle(customPool)) {
     if (taken.has(q.id) || inReview(q)) continue;
     if (!pools.has(q.topic)) pools.set(q.topic, []);
     pools.get(q.topic).push(q);
@@ -210,14 +215,15 @@ function weakestTopics(stats, count) {
 
 function customPanel() {
   const { stats, answered } = topicStats();
-  const due = [...questionById.values()].filter(isDue).length;
+  const due = customPool.filter(isDue).length;
   const last = progress.custom[progress.custom.length - 1];
   const weak = weakestTopics(stats, 3).map(([id]) => esc(lessonById.get(id).title)).join(', ');
   return `<div class="custom-banner">
       <h1>Custom test</h1>
-      <p>A new test is made each time from your own answers: questions you got wrong that are due for review,
-      plus questions from the topics where you make the most mistakes. 24 questions, 45 minutes.</p>
-      ${answered ? `<p class="muted">${due} mistake${due === 1 ? '' : 's'} due for review${weak ? ` · weakest topics: ${weak}` : ''}${last ? ` · last custom test: ${last.score}%` : ''}</p>
+      <p>A new test is made each time from the questions of Exams 1–17 (Extra tests tab), based on your answers:
+      Exam questions you got wrong that are due for review, plus Exam questions from the topics where you make
+      the most mistakes. 24 questions, 45 minutes.</p>
+      ${answered ? `<p class="muted">${due} Exam mistake${due === 1 ? '' : 's'} due for review${weak ? ` · weakest topics: ${weak}` : ''}${last ? ` · last custom test: ${last.score}%` : ''}</p>
       <div class="actions"><a class="btn custom" href="#/custom">Start a custom test</a><a href="#/stats">Topic statistics ›</a></div>`
       : `<p class="muted">Answer some questions first (in any test, lesson quiz or chapter practice), so the app knows what to focus on.</p>`}
     </div>`;
@@ -226,8 +232,7 @@ function customPanel() {
 function statsPage() {
   const { stats, answered } = topicStats();
   const wrong = [...stats.values()].reduce((sum, s) => sum + s.wrong, 0);
-  const all = [...questionById.values()];
-  const count = test => all.filter(test).length;
+  const count = test => customPool.filter(test).length;
   const scheduled = count(inReview), due = count(isDue);
   const mastered = count(q => progress.review[q.id]?.box === MASTERED_BOX);
   const rows = [...stats.entries()].filter(([, s]) => s.answered).sort((a, b) => b[1].weakness - a[1].weakness)
@@ -235,12 +240,13 @@ function statsPage() {
       const rate = pct(s.wrong, s.answered);
       return `<div class="card topic">
         <div class="grow"><div class="title">${esc(lessonById.get(id).title)}</div>
-          <div class="muted">${esc(chapterOfLesson.get(id).title)} · ${s.answered} answer${s.answered === 1 ? '' : 's'} · ${rate}% wrong${s.due ? ` · ${s.due} due for review` : ''}</div>
+          <div class="muted">${esc(chapterOfLesson.get(id).title)} · ${s.answered} answer${s.answered === 1 ? '' : 's'} · ${rate}% wrong${s.due ? ` · ${s.due} Exam question${s.due === 1 ? '' : 's'} due for review` : ''}</div>
           <div class="bar weak"><span style="width:${rate}%"></span></div></div></div>`;
     }).join('');
   const unseen = [...stats.values()].filter(s => !s.answered && s.questions).length;
   return `<a class="back" href="#/tests">‹ Tests</a><h1>Topic statistics</h1>
-    <p>${answered} answers recorded · ${pct(wrong, answered)}% wrong overall · ${due} mistakes due for review now ·
+    <p>${answered} answers recorded · ${pct(wrong, answered)}% wrong overall</p>
+    <p>Exam questions (used by custom tests): ${due} mistakes due for review now ·
       ${scheduled - due} waiting for a later review · ${mastered} mastered</p>
     <p class="muted">Topics are the app's lessons. Questions from the app's tests and the Extra tests were matched to a lesson
       automatically, so a few of them may be counted under a neighbouring topic.</p>
